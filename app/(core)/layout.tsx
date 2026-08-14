@@ -8,8 +8,7 @@ export default async function CoreGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getSessionUser();
-  const tags = await tagPostCounts();
+  const [user, tags] = await Promise.all([getSessionUser(), tagPostCounts()]);
   return (
     <>
       <Navbar />

@@ -26,19 +26,23 @@ export default async function PostPage({
   const { id } = await params;
   const post = await getPostById(id);
   if (!post) notFound();
-  const author = await getAuthorById(post.authorId);
-  const sessionUser = await getSessionUser();
 
-  const score = await getPostScore(post.id);
-  const userVote = await getUserVote(sessionUser?.id, "post", post.id);
+  const [author, sessionUser, score, tags] = await Promise.all([
+    getAuthorById(post.authorId),
+    getSessionUser(),
+    getPostScore(post.id),
+    listTags(),
+  ]);
 
-  const tags = await listTags();
   const primarySlug = post.tagSlugs[0];
   const primaryTag = primarySlug
     ? tags.find((t) => t.slug === primarySlug)
     : undefined;
 
-  const commentTree = await getCommentTree(post.id, sessionUser?.id);
+  const [userVote, commentTree] = await Promise.all([
+    getUserVote(sessionUser?.id, "post", post.id),
+    getCommentTree(post.id, sessionUser?.id),
+  ]);
 
   return (
     <div className="flex gap-8">

@@ -1,14 +1,24 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Settings } from "lucide-react";
 import Link from "next/link";
-import { Input } from "../ui/input";
+import { Suspense } from "react";
+import { SearchBar } from "./search-bar";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "../ui/button";
 import { SignedIn, SignedOut, UserButton } from "@neondatabase/auth/react";
 
+function SearchBarFallback() {
+  return (
+    <div className="relative mx-auto hidden max-w-xl flex-1 md:block">
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="h-10 w-full rounded-full border border-border bg-card pl-10 pr-16" />
+    </div>
+  );
+}
+
 export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-4 px-4">
+      <div className="mx-auto flex h-14 max-w-300 items-center gap-4 px-4">
         <Link
           href="/"
           className={
@@ -24,15 +34,9 @@ export function Navbar() {
           <span className="text-lg">Threadly</span>
         </Link>
 
-        <div className="relative mx-auto hidden max-w-xl flex-1 md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            readOnly
-            placeholder="Search posts..."
-            className="h-10 w-full rounded-full border-border bg-card pl-10 pr-16 text-sm"
-            aria-label="Search posts"
-          />
-        </div>
+        <Suspense fallback={<SearchBarFallback />}>
+          <SearchBar />
+        </Suspense>
 
         <SignedIn>
           <Link
@@ -53,7 +57,17 @@ export function Navbar() {
           >
             <Bell className="size-5" />
           </Button>
-          <UserButton />
+          <UserButton
+            size="icon"
+            additionalLinks={[
+              {
+                href: "/settings",
+                icon: <Settings className="size-4" />,
+                label: "Settings",
+                signedIn: true,
+              },
+            ]}
+          />
         </SignedIn>
 
         <SignedOut>

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { EnrichedCommentNode, nestCommentRows } from "../comment-tree";
 import { PostModel } from "../generated/prisma/models";
 import { prisma } from "../prisma";
@@ -28,14 +29,17 @@ export async function batchAuthorsForIds(
   return result;
 }
 
-export async function listTags(): Promise<Tag[]> {
+// Memoized per-request: layout and page both need the tag list, and
+// without `cache()` that meant two round trips to the database for the
+// exact same query on every single page load.
+export const listTags = cache(async (): Promise<Tag[]> => {
   const rows = await prisma.tag.findMany({ orderBy: { slug: "asc" } });
   return rows.map((t) => ({
     slug: t.slug,
     label: t.label,
     hashColor: t.hashColor,
   }));
-}
+});
 
 export type FeedPostRow = {
   post: Post;
@@ -47,10 +51,22 @@ export async function listPostsSorted(
   sort: FeedSort,
   tagFilter: string | undefined,
   userId: string | undefined,
+  search: string | undefined,
 ): Promise<FeedPostRow[]> {
-  const where = tagFilter
-    ? { postTags: { some: { tagSlug: tagFilter.toLowerCase() } } }
-    : undefined;
+  const trimmedSearch = search?.trim();
+  const where = {
+    ...(tagFilter
+      ? { postTags: { some: { tagSlug: tagFilter.toLowerCase() } } }
+      : {}),
+    ...(trimmedSearch
+      ? {
+          OR: [
+            { title: { contains: trimmedSearch, mode: "insensitive" as const } },
+            { body: { contains: trimmedSearch, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
   const postRows = await prisma.post.findMany({
     where,
     orderBy: { createdAt: "desc" },
@@ -297,13 +313,15 @@ export async function getCommentTree(
   const flat = await listCommentsForPost(postId);
   if (flat.length === 0) return [];
   const authorIds = [...new Set(flat.map((c) => c.authorId))];
-  const authorMap = await batchAuthorsForIds(authorIds);
-
   const commentIds = flat.map((c) => c.id);
-  const scoreMap = await batchCommentScores(commentIds);
-  const voteMap = sessionUserId
-    ? await batchUserVotesForComments(sessionUserId, commentIds)
-    : new Map<string, -1 | 0 | 1>();
+
+  const [authorMap, scoreMap, voteMap] = await Promise.all([
+    batchAuthorsForIds(authorIds),
+    batchCommentScores(commentIds),
+    sessionUserId
+      ? batchUserVotesForComments(sessionUserId, commentIds)
+      : Promise.resolve(new Map<string, -1 | 0 | 1>()),
+  ]);
 
   const enriched = flat
     .map((c) => {

@@ -1,20 +1,20 @@
 import { FeedSortTabs } from "@/components/feed/feed-sort-tabs";
 import { PostCard } from "@/components/feed/post-card";
 import { RightTrending } from "@/components/layout/right-trending";
-import { auth, getSessionUser } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 import {
   batchAuthorsForIds,
   listPostsSorted,
   listTags,
 } from "@/lib/db/queries";
 import { getTrendingToday } from "@/lib/trending";
-import { FeedSort, Tag } from "@/lib/types";
-import Image from "next/image";
+import { FeedSort } from "@/lib/types";
+import Link from "next/link";
 
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string; tag?: string }>;
+  searchParams: Promise<{ sort?: string; tag?: string; q?: string }>;
 }) {
   const sp = await searchParams;
   const sortRaw = sp.sort;
@@ -22,11 +22,11 @@ export default async function Home({
     sortRaw === "new" || sortRaw === "top" ? sortRaw : "hot";
 
   const tagFilter = sp.tag?.toLowerCase();
+  const search = sp.q?.trim() || undefined;
 
-  const sessionUser = await getSessionUser();
-  const rows = await listPostsSorted(sort, tagFilter, sessionUser?.id);
+  const [sessionUser, tags] = await Promise.all([getSessionUser(), listTags()]);
 
-  const tags = await listTags();
+  const rows = await listPostsSorted(sort, tagFilter, sessionUser?.id, search);
   const tagMap = new Map(tags.map((t) => [t.slug, t]));
 
   const authorIds = [...new Set(rows.map((r) => r.post.authorId))];
@@ -54,12 +54,28 @@ export default async function Home({
   return (
     <div className="flex gap-8">
       <div className="min-w-0 flex-1">
-        <FeedSortTabs current={sort} tag={tagFilter} />
+        {search ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+            <span className="text-muted-foreground">
+              Results for{" "}
+              <span className="font-medium text-foreground">
+                &ldquo;{search}&rdquo;
+              </span>
+            </span>
+            <Link href="/" className="font-medium text-primary hover:underline">
+              Clear search
+            </Link>
+          </div>
+        ) : (
+          <FeedSortTabs current={sort} tag={tagFilter} />
+        )}
         <div className="space-y-4">
           {cards}
           {rows.length === 0 && (
             <p className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No posts match this filter.
+              {search
+                ? "No posts match your search."
+                : "No posts match this filter."}
             </p>
           )}
         </div>
