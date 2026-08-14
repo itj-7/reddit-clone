@@ -59,6 +59,7 @@ export function Navbar() {
           </Button>
           <UserButton
             size="icon"
+            disableDefaultLinks
             additionalLinks={[
               {
                 href: "/settings",

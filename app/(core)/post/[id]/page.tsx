@@ -1,11 +1,10 @@
 import { VoteButtons } from "@/components/feed/vote-buttons";
-import { CommentComposer } from "@/components/post/comment-composer";
-import { CommentThread } from "@/components/post/comment-thread";
+import { CommentsSection } from "@/components/post/comments-section";
+import { CommentsSkeleton } from "@/components/post/comments-skeleton";
 import { Separator } from "@/components/ui/separator";
 import { getSessionUser } from "@/lib/auth";
 import {
   getAuthorById,
-  getCommentTree,
   getPostById,
   getPostScore,
   getUserVote,
@@ -17,6 +16,7 @@ import { UserAvatar } from "@neondatabase/auth/react";
 import { ArrowLeft, MessageSquare, Share2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 export default async function PostPage({
   params,
@@ -39,10 +39,7 @@ export default async function PostPage({
     ? tags.find((t) => t.slug === primarySlug)
     : undefined;
 
-  const [userVote, commentTree] = await Promise.all([
-    getUserVote(sessionUser?.id, "post", post.id),
-    getCommentTree(post.id, sessionUser?.id),
-  ]);
+  const userVote = await getUserVote(sessionUser?.id, "post", post.id);
 
   return (
     <div className="flex gap-8">
@@ -113,27 +110,13 @@ export default async function PostPage({
               {post.commentCount} Comments
             </h2>
           </div>
-          {sessionUser ? (
-            <div className="mb-8">
-              <CommentComposer postId={post.id} user={sessionUser} />
-            </div>
-          ) : (
-            <p className="mb-8 rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-              <Link
-                href="/auth/sign-in"
-                className="font-medium text-primary hover:underline"
-              >
-                Log in
-              </Link>{" "}
-              to join the discussion.
-            </p>
-          )}
-
-          <CommentThread
-            tree={commentTree}
-            postAuthorId={post.authorId}
-            sessionUser={sessionUser}
-          />
+          <Suspense fallback={<CommentsSkeleton />}>
+            <CommentsSection
+              postId={post.id}
+              postAuthorId={post.authorId}
+              sessionUser={sessionUser}
+            />
+          </Suspense>
         </section>
       </div>
     </div>
