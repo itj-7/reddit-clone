@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
 import { NeonAuthProviders } from "@/providers/neon-auth-ui-provider";
@@ -27,6 +27,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`dark ${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
